@@ -151,6 +151,9 @@ export default function App() {
   const [calcDueDate, setCalcDueDate] = useState<string>('2026-02-15');
   const [calcIsCommercial, setCalcIsCommercial] = useState<boolean>(true);
 
+  // Sorting state for entry list (QoL)
+  const [sortBy, setSortBy] = useState<'date' | 'reports' | 'debt'>('date');
+
   // QoL Demand letter states
   const [letterCreditor, setLetterCreditor] = useState<string>('Jan Kowalski');
   const [letterDebtor, setLetterDebtor] = useState<string>('UczciwyInwestor Sp. z o.o.');
@@ -447,6 +450,20 @@ export default function App() {
       !selectedLocationFilter || item.location.toLowerCase().includes(selectedLocationFilter.toLowerCase());
 
     return matchesSearch && matchesCategory && matchesStatus && matchesLocation;
+  });
+
+  // Sort logic (QoL)
+  const sortedEntries = [...filteredEntries].sort((a, b) => {
+    if (sortBy === 'reports') {
+      // Liczba zgłoszeń (popularne/upvotes)
+      return b.upvotes - a.upvotes;
+    } else if (sortBy === 'debt') {
+      // Wysokość długu (od największych)
+      return (b.totalDebtAmount || 0) - (a.totalDebtAmount || 0);
+    } else {
+      // Data dodania (najnowsze)
+      return new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime();
+    }
   });
 
   // Calculate sum numbers for the dashboard stats
@@ -1024,13 +1041,33 @@ export default function App() {
                 </div>
 
                 {/* Primary blacklist database records feed */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-[#0c0d10] border border-[#1f2127] rounded-xl px-3.5 py-2.5 text-xs">
+                  <div className="text-gray-400 font-medium font-sans">
+                    Znaleziono: <span id="entries-count-badge" className="text-white font-mono font-bold bg-[#14151a] px-2 py-0.5 rounded border border-[#252831]">{sortedEntries.length}</span> {sortedEntries.length === 1 ? 'wpis' : sortedEntries.length >= 2 && sortedEntries.length <= 4 ? 'wpisy' : 'wpisów'}
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-500 font-bold uppercase text-[9px] tracking-widest shrink-0 font-mono">Sortuj:</span>
+                    <select
+                      id="entry-sort-select"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'date' | 'reports' | 'debt')}
+                      className="bg-[#14151a] border border-[#252831] hover:border-amber-500/40 rounded-lg px-2 py-1 text-xs text-white focus:outline-none transition-colors font-bold cursor-pointer"
+                    >
+                      <option value="date">🟢 Data dodania (najnowsze)</option>
+                      <option value="reports">🔥 Liczba zgłoszeń (popularne)</option>
+                      <option value="debt">💰 Wysokość długu (od największych)</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="space-y-3">
-                  {filteredEntries.length === 0 ? (
+                  {sortedEntries.length === 0 ? (
                     <div className="text-center py-12 bg-[#0c0c0e]/40 rounded-2xl border border-dashed border-[#1f2127] p-4 text-gray-500 text-xs">
                       Brak wpisów spełniających wybrane kryteria wyszukiwania. Możesz zgłosić nowy incydent klikając przycisk na górze.
                     </div>
                   ) : (
-                    filteredEntries.map((item) => (
+                    sortedEntries.map((item) => (
                       <div
                         key={item.id}
                         id={`entry-card-${item.id}`}
@@ -1083,6 +1120,41 @@ export default function App() {
                             >
                               <Share2 className="w-3.5 h-3.5" />
                             </button>
+
+                            {/* Trust Score Indicator / Wskaźnik Zaufania (QoL) */}
+                            {(() => {
+                              const totalVotes = item.upvotes + item.downvotes;
+                              const trustPercent = totalVotes > 0 ? Math.round((item.upvotes / totalVotes) * 100) : 100;
+                              
+                              let colorClass = 'bg-emerald-500';
+                              let textClass = 'text-emerald-400';
+                              if (trustPercent < 45) {
+                                colorClass = 'bg-red-500';
+                                textClass = 'text-red-400';
+                              } else if (trustPercent < 75) {
+                                colorClass = 'bg-amber-500';
+                                textClass = 'text-amber-400';
+                              }
+
+                              return (
+                                <div 
+                                  id={`trust-score-${item.id}`}
+                                  className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-[#16171d]/80 border border-[#272a31]/60 text-gray-400 select-none cursor-help"
+                                  title={`Wiarygodność zgłoszenia: ${trustPercent}% (Potwierdzone: ${item.upvotes}, Zanegowane: ${item.downvotes})`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span className={`text-[8px] font-mono font-bold leading-none ${textClass}`}>
+                                    {trustPercent}%
+                                  </span>
+                                  <div className="w-10 h-1 bg-[#1a1c24] rounded-full overflow-hidden shrink-0">
+                                    <div 
+                                      className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
+                                      style={{ width: `${trustPercent}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
 
