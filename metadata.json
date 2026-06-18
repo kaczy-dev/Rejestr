@@ -1,0 +1,6 @@
+{
+  "name": "Transparency Tracker",
+  "description": "A collaborative platform for transparency and community feedback regarding business practices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
