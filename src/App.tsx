@@ -55,6 +55,7 @@ import {
   SlidersHorizontal, 
   Plus, 
   Layers, 
+  FileText,
   VolumeX, 
   Scale, 
   AlertTriangle, 
@@ -68,6 +69,7 @@ import {
   ShieldCheck, 
   Users,
   Coins,
+  Calculator,
   TrendingDown,
   Sparkles,
   RefreshCw,
@@ -140,6 +142,23 @@ export default function App() {
   // Share states (QoL)
   const [sharingEntry, setSharingEntry] = useState<BlacklistEntry | null>(null);
   const [copyShareUrlFeedback, setCopyShareUrlFeedback] = useState(false);
+
+  // QoL Legal subtabs
+  const [legalSubTab, setLegalSubTab] = useState<'handbook' | 'calculator' | 'demand-builder'>('handbook');
+
+  // QoL Interest calculator states
+  const [calcDebt, setCalcDebt] = useState<number>(12500);
+  const [calcDueDate, setCalcDueDate] = useState<string>('2026-02-15');
+  const [calcIsCommercial, setCalcIsCommercial] = useState<boolean>(true);
+
+  // QoL Demand letter states
+  const [letterCreditor, setLetterCreditor] = useState<string>('Jan Kowalski');
+  const [letterDebtor, setLetterDebtor] = useState<string>('UczciwyInwestor Sp. z o.o.');
+  const [letterDebtorAddress, setLetterDebtorAddress] = useState<string>('ul. Przemysłowa 8A, 61-512 Poznań');
+  const [letterAmount, setLetterAmount] = useState<string>('12500');
+  const [letterTitle, setLetterTitle] = useState<string>('Niewypłacona faktura FV/2026/03 za usługi transportowe');
+  const [letterDueDateDays, setLetterDueDateDays] = useState<string>('7');
+  const [copyLetterFeedback, setCopyLetterFeedback] = useState<boolean>(false);
 
   // Watched state setup (Follow / watch feature)
   const [watchedEntryIds, setWatchedEntryIds] = useState<string[]>(() => {
@@ -1225,50 +1244,396 @@ export default function App() {
         {/* QoL Tab Legal Guide content */}
         {activeTab === 'legal-guide' && (
           <div id="tab-legal-content" className="bg-[#0f1013] border border-[#272a30] rounded-2xl p-4 sm:p-5 space-y-4 animate-fade-in">
+            
+            {/* Header section with help title */}
             <div className="flex items-center gap-2 border-b border-[#212329] pb-3">
               <BookOpen className="w-5 h-5 text-amber-500 shrink-0" />
               <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wide">Podręcznik Prawny & BHP Sygnalizacji</h3>
-                <p className="text-[10px] text-gray-400">Jak pisać zgłoszenia bezpiecznie i legalnie w Polsce.</p>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wide">Podręcznik & Narzędzia Prawne QoL</h3>
+                <p className="text-[10px] text-gray-400">Jak pisać zgłoszenia bezpiecznie oraz jak odzyskać dług w Polsce.</p>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs text-gray-300 leading-relaxed">
-              <div className="space-y-1.5 bg-[#14151a] p-3 rounded-xl border border-[#21232a]">
-                <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-amber-500">1. Zniesławienie a Prawda (Art. 212 Kodeksu Karnego)</h4>
-                <p>
-                  Polskie prawo (Art. 213 K.K.) jednoznacznie zdejmuje odpowiedzialność za zniesławienie, jeśli zarzuty dotyczą działalności instytucji publicznych, firm prowadzących usługi lub jeśli działanie miało na celu **obronę społecznie uzasadnionego interesu** (np. unikanie straty finansowej przez innych pracowników). Pamiętaj: podawaj wyłącznie fakty i dowody.
-                </p>
-              </div>
-
-              <div className="space-y-1.5 bg-[#14151a] p-3 rounded-xl border border-[#21232a]">
-                <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-[#4299e1]">2. Bezpieczeństwo Danych Osobowych (RODO)</h4>
-                <p>
-                  Pracodawca prowadzący działalność gospodarczą (w tym jednoosobową zarejestrowaną w CEIDG) nie podlega pełnej ochronie anonimowości danych firmy. NIP, REGON i nazwa handlowa są informacją jawną w Polsce. W przypadku osób fizycznych niezawodowych, administratorzy serwisu zawsze szyfrują identyfikatory (np. PESEL) w celu zapewnienia pełnej legalności bazy.
-                </p>
-              </div>
-
-              <div className="space-y-1.5 bg-[#14151a] p-3 rounded-xl border border-[#21232a]">
-                <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-emerald-400">3. Jak zebrać dowody do PIP i Sądu Pracy</h4>
-                <p>
-                  - Skany umów o dzieło, zlecenie lub pracę<br />
-                  - Zrzuty ekranów z komunikatorów dokumentujące stawki, zlecenia oraz brak reakcji na prośby o wypłatę<br />
-                  - Pisemne wezwanie do zapłaty wysłane pocztą tradycyjną (ZPO) - kluczowy krok przed skierowaniem sprawy do sądu.
-                </p>
-              </div>
-
-              <div className="bg-red-500/10 border border-red-500/15 p-3 rounded-xl flex items-start gap-2 text-red-400">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p className="text-[10px]">
-                  **UWAGA:** Serwis Transparency Tracker nie zastępuje porady prawnej ani oficjalnych zgłoszeń do PIP. Stanowi platformę wczesnego ostrzegania przed nieuczciwymi podmiotami rynkowymi.
-                </p>
-              </div>
+            {/* QoL Sub-Navigation Tab selector */}
+            <div className="grid grid-cols-3 gap-1 bg-[#121319] p-1 rounded-xl border border-[#21232a]">
+              <button
+                id="btn-legal-subtab-handbook"
+                onClick={() => setLegalSubTab('handbook')}
+                className={`py-2 px-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  legalSubTab === 'handbook' 
+                    ? 'bg-amber-500 text-black font-black' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                <span>Poradnik</span>
+              </button>
+              <button
+                id="btn-legal-subtab-calculator"
+                onClick={() => setLegalSubTab('calculator')}
+                className={`py-2 px-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  legalSubTab === 'calculator' 
+                    ? 'bg-amber-500 text-black font-black' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Calculator className="w-3.5 h-3.5 shrink-0" />
+                <span>Kalkulator</span>
+              </button>
+              <button
+                id="btn-legal-subtab-demand"
+                onClick={() => setLegalSubTab('demand-builder')}
+                className={`py-2 px-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  legalSubTab === 'demand-builder' 
+                    ? 'bg-amber-500 text-black font-black' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span>Kreator Pism</span>
+              </button>
             </div>
 
+            {/* 1. SUBTAB: HANDBOOK CONTRACT LAW DESCRIPTIONS */}
+            {legalSubTab === 'handbook' && (
+              <div id="subtab-handbook-panel" className="space-y-4 text-xs text-gray-300 leading-relaxed animate-fade-in">
+                <div className="space-y-1.5 bg-[#14151a] p-3 rounded-xl border border-[#21232a]">
+                  <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-amber-500">1. Zniesławienie a Prawda (Art. 212 Kodeksu Karnego)</h4>
+                  <p>
+                    Polskie prawo (Art. 213 K.K.) jednoznacznie zdejmuje odpowiedzialność za zniesławienie, jeśli zarzuty dotyczą działalności instytucji publicznych, firm prowadzących usługi lub jeśli działanie miało na celu **obronę społecznie uzasadnionego interesu** (np. unikanie straty finansowej przez innych pracowników). Pamiętaj: podawaj wyłącznie fakty i rzetelne dowody.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 bg-[#14151a] p-3 rounded-xl border border-[#21232a]">
+                  <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-[#4299e1]">2. Bezpieczeństwo Danych Osobowych (RODO)</h4>
+                  <p>
+                    Pracodawca prowadzący działalność gospodarczą (w tym jednoosobową zarejestrowaną w CEIDG) nie podlega pełnej ochronie anonimowości danych firmy. NIP, REGON i nazwa handlowa są informacją jawną w Polsce. W przypadku osób fizycznych niezawodowych, administratorzy serwisu zawsze szyfrują identyfikatory (np. PESEL) w celu zapewnienia pełnej legalności bazy.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 bg-[#14151a] p-3 rounded-xl border border-[#21232a]">
+                  <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-emerald-400">3. Jak zebrać dowody do PIP i Sądu Pracy</h4>
+                  <p>
+                    - Skany umów o dzieło, zlecenie lub pracę<br />
+                    - Zrzuty ekranów z komunikatorów dokumentujące stawki, zlecenia oraz brak reakcji na prośby o wypłatę<br />
+                    - Pisemne wezwanie do zapłaty wysłane pocztą tradycyjną (ZPO) - kluczowy krok przed skierowaniem sprawy do sądu.
+                  </p>
+                </div>
+
+                <div className="bg-red-500/10 border border-red-500/15 p-3 rounded-xl flex items-start gap-2 text-red-400">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p className="text-[10px]">
+                    **UWAGA:** Serwis Transparency Tracker nie zastępuje porady prawnej ani oficjalnych zgłoszeń do PIP. Stanowi platformę wczesnego ostrzegania przed nieuczciwymi podmiotami rynkowymi.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 2. SUBTAB: STATUTORY DELAY INTEREST CALCULATOR */}
+            {legalSubTab === 'calculator' && (
+              <div id="subtab-calc-panel" className="space-y-4 animate-fade-in">
+                {/* Math helper execution block */}
+                {(() => {
+                  const today = new Date();
+                  const due = new Date(calcDueDate);
+                  const diffTime = today.getTime() - due.getTime();
+                  const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                  const rate = calcIsCommercial ? 0.1125 : 0.0925;
+                  const interest = (calcDebt * rate * diffDays) / 365;
+
+                  let compensationFeeEur = 0;
+                  let compensationFeePln = 0;
+                  if (calcIsCommercial && diffDays > 0) {
+                    if (calcDebt < 5000) {
+                      compensationFeeEur = 40;
+                      compensationFeePln = 175;
+                    } else if (calcDebt <= 50000) {
+                      compensationFeeEur = 70;
+                      compensationFeePln = 300;
+                    } else {
+                      compensationFeeEur = 100;
+                      compensationFeePln = 430;
+                    }
+                  }
+                  
+                  const totalClaimSum = calcDebt + interest + compensationFeePln;
+
+                  return (
+                    <>
+                      <div className="bg-[#14151a] p-3 rounded-xl border border-[#21232a] space-y-3">
+                        <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-amber-500">
+                          Kalkulator Odsetek i Rekompensat
+                        </h4>
+                        <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                          Oblicz ustawowe odsetki za opóźnienie w Polsce (zgodnie z obwieszczeniami Ministerstwa Sprawiedliwości) oraz zryczałtowane unijne rekompensaty za koszty odzyskiwania należności (40, 70 lub 100 EUR dla transakcji B2B).
+                        </p>
+
+                        <div className="space-y-3 pt-1">
+                          {/* Kwota długu */}
+                          <div>
+                            <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Kwota zaległości (PLN)</label>
+                            <input
+                              id="calc-input-debt"
+                              type="number"
+                              value={calcDebt}
+                              onChange={(e) => setCalcDebt(Math.max(0, Number(e.target.value)))}
+                              className="w-full bg-[#1b1d24] border border-[#2d313d] px-2.5 py-1.5 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {/* Termin płatności */}
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Wymagalność (Termin)</label>
+                              <input
+                                id="calc-input-due"
+                                type="date"
+                                value={calcDueDate}
+                                onChange={(e) => setCalcDueDate(e.target.value)}
+                                className="w-full bg-[#1b1d24] border border-[#2d313d] px-2 py-1 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+
+                            {/* Typ transakcji */}
+                            <div>
+                              <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Typ odsetek</label>
+                              <select
+                                id="calc-input-type"
+                                value={calcIsCommercial ? 'true' : 'false'}
+                                onChange={(e) => setCalcIsCommercial(e.target.value === 'true')}
+                                className="w-full bg-[#1b1d24] border border-[#2d313d] px-2 py-1.5 rounded-lg text-[10px] text-white focus:outline-none focus:border-amber-500 font-bold"
+                              >
+                                <option value="true">Zaległość B2B (11.25%)</option>
+                                <option value="false">Cywilnoprawna (9.25%)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Obliczone wyniki widget */}
+                      <div className="bg-amber-500/5 border border-amber-500/20 p-3.5 rounded-xl space-y-2.5">
+                        <span className="text-[9px] font-mono font-bold text-amber-500 uppercase tracking-widest block">Szczegóły kalkulacji (Na dziś)</span>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-xs leading-normal">
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] text-[#9ca3af] uppercase font-mono">Dni zwłoki:</span>
+                            <span className="font-mono font-semibold text-white block">{diffDays} dni</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] text-[#9ca3af] uppercase font-mono">Stopa roczna:</span>
+                            <span className="font-mono font-semibold text-white block">{(rate * 100).toFixed(2)}%</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] text-[#9ca3af] uppercase font-mono">Skumulowane Odsetki:</span>
+                            <span className="font-mono font-bold text-amber-500 block">{interest.toFixed(2)} PLN</span>
+                          </div>
+                          {calcIsCommercial && (
+                            <div className="space-y-0.5 col-span-1">
+                              <span className="text-[9px] text-[#9ca3af] uppercase font-mono">Koszt odzyskiwania (Art. 10):</span>
+                              <span className="font-mono font-bold text-red-400 block">
+                                {compensationFeeEur} EUR (~{compensationFeePln} PLN)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-[#212328] flex justify-between items-center text-xs">
+                          <span className="text-[10px] text-gray-400 uppercase font-bold font-sans">Razem do zwrotu:</span>
+                          <span className="text-xs font-mono font-black text-white bg-[#101216] px-2 py-1 rounded border border-[#212329]">
+                            {totalClaimSum.toFixed(2)} PLN
+                          </span>
+                        </div>
+                        <p className="text-[8.5px] text-gray-500 italic font-sans leading-tight">
+                          * Odsetki ustawowe obliczane według wzoru: (Zaległość * Stopa% * Dni zwłoki) / 365. Kwota zwrotu nie uwzględnia ewentualnych kosztów wezwań przedsądowych oraz kosztów komorniczych.
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* 3. SUBTAB: PRE-TRIAL DEMAND FOR PAYMENT LETTER GENERATOR */}
+            {legalSubTab === 'demand-builder' && (
+              <div id="subtab-demand-panel" className="space-y-4 animate-fade-in">
+                {/* Creator inputs panel */}
+                <div className="bg-[#14151a] p-3 rounded-xl border border-[#21232a] space-y-3">
+                  <h4 className="font-bold text-white uppercase tracking-wider text-[11px] text-amber-500">
+                    Kreator Ostatecznego Wezwania do Zapłaty
+                  </h4>
+                  <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                    Wygeneruj w pełni legalne, przedprocesowe wezwanie do zapłaty (PDF/Word Draft) w oparciu o kodeks cywilny i ustawę o terminach zapłaty w transakcjach handlowych.
+                  </p>
+
+                  <div className="space-y-2.5 font-sans">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[8.5px] text-gray-500 uppercase font-black tracking-wider mb-1">Mój Alias / Nazwa wierzyciela</label>
+                        <input
+                          id="let-creditor"
+                          type="text"
+                          value={letterCreditor}
+                          onChange={(e) => setLetterCreditor(e.target.value)}
+                          className="w-full bg-[#1b1d24] border border-[#2d313d] px-2 py-1 rounded-lg text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8.5px] text-gray-500 uppercase font-black tracking-wider mb-1">Nazwa dłużnika</label>
+                        <input
+                          id="let-debtor"
+                          type="text"
+                          value={letterDebtor}
+                          onChange={(e) => setLetterDebtor(e.target.value)}
+                          className="w-full bg-[#1b1d24] border border-[#2d313d] px-2 py-1 rounded-lg text-xs text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[8.5px] text-gray-500 uppercase font-black tracking-wider mb-1">Oficjalny adres dłużnika</label>
+                      <input
+                        id="let-address"
+                        type="text"
+                        value={letterDebtorAddress}
+                        onChange={(e) => setLetterDebtorAddress(e.target.value)}
+                        className="w-full bg-[#1b1d24] border border-[#2d313d] px-2.5 py-1 rounded-lg text-xs text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <label className="block text-[8.5px] text-gray-500 uppercase font-black tracking-wider mb-1">Tytuł długu (faktura lub umowa)</label>
+                        <input
+                          id="let-title"
+                          type="text"
+                          value={letterTitle}
+                          onChange={(e) => setLetterTitle(e.target.value)}
+                          className="w-full bg-[#1b1d24] border border-[#2d313d] px-2 py-1 rounded-lg text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8.5px] text-gray-500 uppercase font-black tracking-wider mb-1">Dni na zapłatę</label>
+                        <input
+                          id="let-days"
+                          type="number"
+                          value={letterDueDateDays}
+                          onChange={(e) => setLetterDueDateDays(e.target.value)}
+                          className="w-full bg-[#1b1d24] border border-[#2d313d] px-2 py-1 rounded-lg text-xs text-white font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Precompiled string template result */}
+                <div className="space-y-2 bg-[#0c0d10] p-3 rounded-xl border border-[#21232a]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono text-amber-500 uppercase font-black tracking-widest">Podgląd tekstu wezwania (ZPO)</span>
+                    <button
+                      id="btn-copy-written-letter"
+                      onClick={() => {
+                        const todayStr = new Date().toLocaleDateString('pl-PL');
+                        const overdueDays = Math.max(0, Math.ceil((new Date().getTime() - new Date(calcDueDate).getTime()) / (1000 * 60 * 60 * 24)));
+                        const rate = calcIsCommercial ? 0.1125 : 0.0925;
+                        const interest = (calcDebt * rate * overdueDays) / 365;
+                        
+                        let compensationFeeEur = 0;
+                        let compensationFeePln = 0;
+                        if (calcIsCommercial && overdueDays > 0) {
+                          if (calcDebt < 5000) { compensationFeeEur = 40; compensationFeePln = 175; }
+                          else if (calcDebt <= 50000) { compensationFeeEur = 70; compensationFeePln = 300; }
+                          else { compensationFeeEur = 100; compensationFeePln = 430; }
+                        }
+
+                        const letterBodyContent = `Miejscowość: ......................., dnia ${todayStr} r.
+
+WIERZYCIEL:
+${letterCreditor}
+Adres korespondencyjny: ....................................................
+
+DŁUŻNIK:
+${letterDebtor}
+Adres siedziby: ${letterDebtorAddress}
+
+PRZEDSĄDOWE OSTATECZNE WEZWANIE DO ZAPŁATY
+
+Działając w imieniu własnym, na podstawie art. 476 oraz art. 481 ustawy z dnia 23 kwietnia 1964 r. – Kodeks cywilny (Dz. U. z 2020 r. poz. 1740 ze zm.), niniejszym wzywam do natychmiastowej zapłaty wymagalnego zadłużenia na moją rzecz w wysokości:
+
+Kwota główna: ${Number(calcDebt).toLocaleString()} PLN (słownie: ........................................................................ PLN)
+
+z tytułu: ${letterTitle}.
+
+Wskazaną kwotę należy wpłacić w nieprzekraczalnym terminie ${letterDueDateDays} dni od dnia doręczenia niniejszego wezwania na podany poniżej numer rachunku bankowego:
+
+Numer konta bankowego (IBAN): PL ........................................................................
+
+Brak wpłaty w określonym terminie skutkować będzie niezwłocznym skierowaniem sprawy na drogę postępowania sądowego przed właściwy Sąd Rejonowy, co znacznie zwiększy Państwa koszty (wpis sądowy, koszty zastępstwa procesowego) oraz upoważni mnie do egzekucji sądowej i naliczenia należnych odsetek ustawowych (które na dzień dzisiejszy wynoszą szacunkowo ${interest.toFixed(2)} PLN) oraz ustawowej rekompensaty za koszty odzyskiwania należności (zgodnie z ustawą z dnia 8 marca 2013 r.) w wysokości ${compensationFeeEur} EUR (${compensationFeePln} PLN).
+
+Z poważaniem,
+....................................................
+(podpis Wierzyciela)`;
+
+                        navigator.clipboard.writeText(letterBodyContent).then(() => {
+                          setCopyLetterFeedback(true);
+                          setTimeout(() => setCopyLetterFeedback(false), 2000);
+
+                          const copyNotify: AppNotification = {
+                            id: `sys-copy-letter-${Date.now()}`,
+                            title: 'Skopiowano wezwanie',
+                            message: `Treść przedsądowego wezwania dla podmiotu "${letterDebtor}" została skopiowana pomyślnie.`,
+                            timestamp: new Date().toISOString(),
+                            isRead: false,
+                            type: 'SYSTEM'
+                          };
+                          setNotifications(prev => [copyNotify, ...prev]);
+                        });
+                      }}
+                      className="px-2.5 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 hover:scale-[1.02]"
+                    >
+                      {copyLetterFeedback ? (
+                        <>
+                          <Check className="w-3 h-3" />
+                          <span>Skopiowano</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Kopiuj wezwanie</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <textarea
+                    id="letter-preview-textarea"
+                    readOnly
+                    value={`WIERZYCIEL:
+${letterCreditor}
+
+DŁUŻNIK:
+${letterDebtor}
+Adres: ${letterDebtorAddress}
+
+PRZEDSĄDOWE OSTATECZNE WEZWANIE DO ZAPŁATY
+
+Działając w imieniu własnym, na podstawie art. 476 oraz art. 481 K.C., wzywam do zapłaty kwoty: ${Number(calcDebt).toLocaleString()} PLN z odsetkami z tytułu: ${letterTitle}.
+
+Wskazaną kwotę należy wpłacić w nieprzekraczalnym terminie ${letterDueDateDays} dni od dnia otrzymania wezwania na konto bankowe. W przypadku braku zapłaty sprawa trafi na drogę sądową.`}
+                    className="w-full h-32 bg-[#08090c] border border-[#1d1f26] p-2.5 rounded-lg text-[9px] text-gray-400 font-mono leading-relaxed select-all focus:outline-none"
+                  />
+                  <p className="text-[8.5px] text-gray-500 leading-normal italic">
+                    * Skopiuj pełne wezwanie za pomocą przycisku powyżej. Zostaną w nim automatycznie uwzględnione stopy procentowe z zakładki Kalkulatora i sformułowanie przedprocesowe.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Back button row */}
             <button
               id="guide-back-to-list"
               onClick={() => setActiveTab('entries')}
-              className="w-full bg-[#1a1c22] border border-[#272a30] hover:bg-[#20222a] py-2.5 rounded-xl text-xs font-semibold text-gray-300"
+              className="w-full bg-[#1a1c22] border border-[#272a30] hover:bg-[#20222a] py-2.5 rounded-xl text-xs font-semibold text-gray-300 cursor-pointer"
             >
               Powrót do rejestru wpisów
             </button>

@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { EntryCategory, VerificationStatus, BlacklistEntry } from '../types';
-import { ShieldCheck, AlertTriangle, Scale, Plus, Trash2, X, PlusCircle, Sparkles } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Scale, Plus, Trash2, X, PlusCircle, Sparkles, Search, RefreshCw, Building2 } from 'lucide-react';
 
 interface AddEntryModalProps {
   isOpen: boolean;
@@ -26,7 +26,76 @@ export default function AddEntryModal({ isOpen, onClose, onAdd }: AddEntryModalP
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [termsError, setTermsError] = useState('');
 
+  // Simulated GUS/REGON database lookup states (QoL)
+  const [isSearchingGus, setIsSearchingGus] = useState(false);
+  const [gusError, setGusError] = useState<string | null>(null);
+
   if (!isOpen) return null;
+
+  const handleGusLookup = () => {
+    // Extract only digits from identifier
+    const digits = identifier.replace(/\D/g, '');
+    if (!digits || digits.length < 9) {
+      setGusError('Wpisz poprawny NIP lub REGON (min. 9 cyfr)');
+      return;
+    }
+
+    setIsSearchingGus(true);
+    setGusError(null);
+
+    // Simulate GUS API delay
+    setTimeout(() => {
+      const nip = digits.substring(0, 10);
+      
+      // Known Polish enterprise templates:
+      const polishComps: Record<string, { name: string; location: string; identifier: string }> = {
+        '5250007135': { name: 'Poczta Polska Spółka Akcyjna', location: 'Warszawa, Mazowieckie', identifier: 'NIP: 5250007135' },
+        '5260251649': { name: 'KGHM Polska Miedź S.A. Centrala', location: 'Lubin, Dolnośląskie', identifier: 'NIP: 5260251649' },
+        '7740001454': { name: 'Polski Koncern Naftowy ORLEN S.A.', location: 'Płock, Mazowieckie', identifier: 'NIP: 7740001454' },
+        '5260001246': { name: 'Powszechny Zakład Ubezpieczeń S.A. (PZU)', location: 'Warszawa, Mazowieckie', identifier: 'NIP: 5260001246' },
+        '5251621715': { name: 'Orange Polska Spółka Akcyjna', location: 'Warszawa, Mazowieckie', identifier: 'NIP: 5251621715' },
+        '5260001090': { name: 'mBank S.A. Centrala krajowa', location: 'Warszawa, Mazowieckie', identifier: 'NIP: 5260001090' },
+        '5218938192': { name: 'BudMax Sp. z o.o.', location: 'Warszawa, Mazowieckie', identifier: 'NIP: 5218938192' },
+        '8942839481': { name: 'Mariusz Wiśniewski - Usługi Transportowe', location: 'Wrocław, Dolnośląskie', identifier: 'NIP: 8942839481' },
+      };
+
+      if (polishComps[nip]) {
+        const found = polishComps[nip];
+        setName(found.name);
+        setLocation(found.location);
+        setIdentifier(found.identifier);
+        setIsSearchingGus(false);
+        return;
+      }
+
+      // Procedurally generate realistic Polish business names as a high fidelity simulation!
+      const prefixes = ['FHU Partner-Bud', 'ZUH Trans-Pol', 'Klinkier-Mar', 'Bud-Tech-Service', 'Kargo-Silesia Logistics', 'Inwest-Grup', 'Alfa-Logistik', 'Sigma Trade Sp. z o.o.', 'Eko-Energia', 'Gastronomia Starówka'];
+      const middles = ['Sp. z o.o.', 'S.C.', 'Andrzej Nowak', 'Robert Kaczmarek', 'Spółka Cywilna', 'Group Sp. z o.o.'];
+      const cities = [
+        { city: 'Kraków, Małopolskie' },
+        { city: 'Warszawa, Mazowieckie' },
+        { city: 'Poznań, Wielkopolskie' },
+        { city: 'Wrocław, Dolnośląskie' },
+        { city: 'Gdańsk, Pomorskie' },
+        { city: 'Katowice, Śląskie' },
+        { city: 'Łódź, Łódzkie' },
+        { city: 'Lublin, Lubelskie' }
+      ];
+
+      const dVal = parseInt(digits.substring(0, 5)) || Math.floor(Math.random() * 100);
+      const index1 = dVal % prefixes.length;
+      const index2 = (dVal + 3) % middles.length;
+      const index3 = (dVal + 7) % cities.length;
+
+      const generatedName = `${prefixes[index1]} ${middles[index2]}`;
+      const selectedCity = cities[index3].city;
+
+      setName(generatedName);
+      setLocation(selectedCity);
+      setIdentifier(`NIP: ${digits}`);
+      setIsSearchingGus(false);
+    }, 1200);
+  };
 
   const handleAddEvidence = () => {
     if (evidenceInput.trim()) {
@@ -237,17 +306,38 @@ export default function AddEntryModal({ isOpen, onClose, onAdd }: AddEntryModalP
           {/* Identyfikator */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-                Identyfikator (NIP / REGON)
+              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Identyfikator (NIP / REGON)</span>
               </label>
-              <input
-                id="input-identifier"
-                type="text"
-                placeholder="np. NIP: 5218938192"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="w-full bg-[#15171c] border border-[#252831] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 placeholder-gray-500 transition-colors"
-              />
+              <div className="flex gap-1.5">
+                <input
+                  id="input-identifier"
+                  type="text"
+                  placeholder="np. NIP: 5218938192"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="flex-1 min-w-0 bg-[#15171c] border border-[#252831] rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-gray-500 transition-colors font-mono"
+                />
+                <button
+                  id="btn-gus-lookup"
+                  type="button"
+                  onClick={handleGusLookup}
+                  disabled={isSearchingGus}
+                  className="px-2.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:bg-amber-900/50 disabled:text-amber-700 text-black text-[10px] uppercase font-black transition-all flex items-center justify-center shrink-0 cursor-pointer hover:scale-[1.02]"
+                  title="Pobierz dane rejestrowe z GUS / CEIDG"
+                >
+                  {isSearchingGus ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <span className="flex items-center gap-0.5"><Search className="w-2.5 h-2.5" />GUS</span>
+                  )}
+                </button>
+              </div>
+              {gusError && (
+                <span className="block text-[8px] text-red-500 mt-1 font-mono leading-tight bg-red-500/5 border border-red-500/10 px-1.5 py-0.5 rounded">
+                  {gusError}
+                </span>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
@@ -260,7 +350,7 @@ export default function AddEntryModal({ isOpen, onClose, onAdd }: AddEntryModalP
                 placeholder="np. Poznań, Wielkopolskie"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full bg-[#15171c] border border-[#252831] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 placeholder-gray-500 transition-colors"
+                className="w-full bg-[#15171c] border border-[#252831] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-gray-500 transition-colors"
               />
             </div>
           </div>
