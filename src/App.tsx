@@ -86,7 +86,9 @@ import {
   Copy,
   Check,
   Share2,
-  X
+  X,
+  Flag,
+  BarChart3
 } from 'lucide-react';
 
 export default function App() {
@@ -98,7 +100,16 @@ export default function App() {
   const [entries, setEntries] = useState<BlacklistEntry[]>(() => {
     try {
       const saved = localStorage.getItem('ros_entries_v1');
-      return saved ? JSON.parse(saved) : INITIAL_ENTRIES;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // If they have more entries, or different entries than our strict 3 ones, let's reset to INITIAL_ENTRIES
+        if (parsed.length !== 3 || !parsed.some((x: any) => x.name === 'Krzysztof Matan')) {
+          localStorage.removeItem('ros_entries_v1');
+          return INITIAL_ENTRIES;
+        }
+        return parsed;
+      }
+      return INITIAL_ENTRIES;
     } catch {
       return INITIAL_ENTRIES;
     }
@@ -143,6 +154,12 @@ export default function App() {
   const [sharingEntry, setSharingEntry] = useState<BlacklistEntry | null>(null);
   const [copyShareUrlFeedback, setCopyShareUrlFeedback] = useState(false);
 
+  // Abuse reporting states (QoL)
+  const [reportingEntry, setReportingEntry] = useState<BlacklistEntry | null>(null);
+  const [reportReason, setReportReason] = useState<string>('fake_news');
+  const [reportDetails, setReportDetails] = useState<string>('');
+  const [reportSubmittedFeedback, setReportSubmittedFeedback] = useState(false);
+
   // QoL Legal subtabs
   const [legalSubTab, setLegalSubTab] = useState<'handbook' | 'calculator' | 'demand-builder'>('handbook');
 
@@ -153,6 +170,24 @@ export default function App() {
 
   // Sorting state for entry list (QoL)
   const [sortBy, setSortBy] = useState<'date' | 'reports' | 'debt'>('date');
+
+  // Card view dropdown menu state (QoL)
+  const [activeCardMenuId, setActiveCardMenuId] = useState<string | null>(null);
+
+  // Active interest calculation tooltip ID (QoL)
+  const [activeInterestTooltip, setActiveInterestTooltip] = useState<string | null>(null);
+
+  // Close card dropdown menu on outside clicks
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setActiveCardMenuId(null);
+      setActiveInterestTooltip(null);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, []);
 
   // QoL Demand letter states
   const [letterCreditor, setLetterCreditor] = useState<string>('Jan Kowalski');
@@ -1072,7 +1107,7 @@ export default function App() {
                         key={item.id}
                         id={`entry-card-${item.id}`}
                         onClick={() => setSelectedEntryId(item.id)}
-                        className="bg-[#0f1013] border border-[#1f2127] hover:border-[#383d47] p-4 rounded-2xl shadow-sm transition-all hover:translate-y-[-2px] cursor-pointer relative overflow-hidden group"
+                        className="bg-[#0f1013] border border-[#1f2127] hover:border-[#383d47] p-4 rounded-2xl shadow-sm transition-all hover:translate-y-[-2px] cursor-pointer relative overflow-visible group"
                       >
                         {/* Status bar top */}
                         <div className="flex justify-between items-center gap-2 mb-2">
@@ -1121,6 +1156,87 @@ export default function App() {
                               <Share2 className="w-3.5 h-3.5" />
                             </button>
 
+                            {/* Report / Zgłoś nadużycie Button */}
+                            <button
+                              id={`report-btn-${item.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReportingEntry(item);
+                                setReportReason('fake_news');
+                                setReportDetails('');
+                                setReportSubmittedFeedback(false);
+                              }}
+                              className="p-1 rounded-md bg-[#16171d]/80 hover:bg-[#1a1c22] border border-[#272a31]/60 text-gray-400 hover:text-red-500 transition-all cursor-pointer"
+                              title="Zgłoś błąd lub nadużycie we wpisie"
+                            >
+                              <Flag className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Card View Dropdown Menu / Szybki wybór widoku (QoL) */}
+                            <div className="relative" id={`card-menu-container-${item.id}`}>
+                              <button
+                                id={`view-menu-btn-${item.id}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveCardMenuId(prev => prev === item.id ? null : item.id);
+                                }}
+                                className="p-1 rounded-md bg-[#16171d]/80 hover:bg-[#1a1c22] border border-[#272a31]/60 text-gray-400 hover:text-amber-400 transition-all cursor-pointer flex items-center gap-0.5"
+                                title="Zmień format widoku karty bezpośrednio na liście"
+                              >
+                                <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-400" />
+                                <ChevronDown className="w-2.5 h-2.5 text-gray-500" />
+                              </button>
+
+                              {activeCardMenuId === item.id && (
+                                <div 
+                                  id={`view-menu-dropdown-${item.id}`}
+                                  className="absolute right-0 mt-1 w-40 bg-[#0c0d10] border border-[#232731] rounded-xl shadow-2xl py-1 z-30 animate-scale-up font-sans"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="px-2.5 py-1.5 border-b border-[#16171d] text-[8px] font-bold text-gray-500 uppercase tracking-widest font-mono">
+                                    Widok karty
+                                  </div>
+                                  <button
+                                    id={`view-summary-btn-${item.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedEntryIds(prev => prev.filter(x => x !== item.id));
+                                      setActiveCardMenuId(null);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-[10px] flex items-center justify-between transition-colors cursor-pointer ${
+                                      !expandedEntryIds.includes(item.id) 
+                                        ? 'bg-amber-500/10 text-amber-400 font-bold' 
+                                        : 'text-gray-400 hover:bg-[#14161d]/80 hover:text-white'
+                                    }`}
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      <span>📄 Podsumowanie</span>
+                                    </span>
+                                    {!expandedEntryIds.includes(item.id) && <Check className="w-3 h-3 text-amber-500" />}
+                                  </button>
+
+                                  <button
+                                    id={`view-detailed-btn-${item.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedEntryIds(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+                                      setActiveCardMenuId(null);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-[10px] flex items-center justify-between transition-colors cursor-pointer ${
+                                      expandedEntryIds.includes(item.id) 
+                                        ? 'bg-amber-500/10 text-amber-400 font-bold' 
+                                        : 'text-gray-400 hover:bg-[#14161d]/80 hover:text-white'
+                                    }`}
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      <span>🔍 Szczegółowy</span>
+                                    </span>
+                                    {expandedEntryIds.includes(item.id) && <Check className="w-3 h-3 text-amber-500" />}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
                             {/* Trust Score Indicator / Wskaźnik Zaufania (QoL) */}
                             {(() => {
                               const totalVotes = item.upvotes + item.downvotes;
@@ -1161,7 +1277,18 @@ export default function App() {
                         {/* Title and ID */}
                         <div className="space-y-1">
                           <h4 className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors flex items-center justify-between gap-1.5">
-                            <span className="truncate">{item.name}</span>
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="truncate">{item.name}</span>
+                              {item.status === VerificationStatus.VERIFIED && (
+                                <span 
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0"
+                                  title="Ten wpis posiada zweryfikowane dane rejestrowe rzetelnym dokumentem"
+                                >
+                                  <ShieldCheck className="w-2.5 h-2.5 text-cyan-400" />
+                                  Sprawdzone
+                                </span>
+                              )}
+                            </span>
                             <ArrowUpRight className="w-4 h-4 text-gray-600 shrink-0 group-hover:text-amber-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                           </h4>
                           <span className="block text-[10px] text-gray-500 font-mono tracking-wide">
@@ -1187,7 +1314,78 @@ export default function App() {
                               </div>
                               <div>
                                 <span className="text-gray-500 block">Suma długu / szkody:</span>
-                                <span className="text-red-400 font-semibold">{item.totalDebtAmount ? `${item.totalDebtAmount.toLocaleString()} PLN` : 'Brak danych o roszczeniu'}</span>
+                                <div className="flex items-center gap-1.5 relative mt-0.5" id={`interest-calc-exp-${item.id}`}>
+                                  <span className="text-red-400 font-semibold">{item.totalDebtAmount ? `${item.totalDebtAmount.toLocaleString()} PLN` : 'Brak danych o roszczeniu'}</span>
+                                  {item.totalDebtAmount && (
+                                    <>
+                                      <button
+                                        id={`btn-interest-calc-exp-${item.id}`}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveInterestTooltip(prev => prev === `${item.id}-exp` ? null : `${item.id}-exp`);
+                                        }}
+                                        onMouseEnter={() => setActiveInterestTooltip(`${item.id}-exp`)}
+                                        onMouseLeave={() => setActiveInterestTooltip(null)}
+                                        className="p-1 rounded bg-[#16171d]/80 hover:bg-[#1f2129] border border-[#272a31]/60 text-gray-400 hover:text-amber-400 transition-all cursor-pointer flex items-center justify-center"
+                                        title="Oblicz szacowane odsetki ustawowe za zwłokę od daty zgłoszenia"
+                                      >
+                                        <BarChart3 className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      {activeInterestTooltip === `${item.id}-exp` && (() => {
+                                        const reportedDate = new Date(item.reportedAt);
+                                        const currentDate = new Date();
+                                        const diffTime = Math.max(0, currentDate.getTime() - reportedDate.getTime());
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                        const annualRate = 0.1125;
+                                        const interestAmount = item.totalDebtAmount * annualRate * (diffDays / 365);
+                                        return (
+                                          <div 
+                                            id={`tooltip-exp-${item.id}`}
+                                            className="absolute bottom-full mb-2 right-0 w-64 bg-[#0a0b0d] border border-amber-500/30 rounded-xl p-3 shadow-2xl z-40 space-y-2 pointer-events-auto leading-normal text-left" 
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <div className="flex items-center justify-between border-b border-[#21232a] pb-1.5">
+                                              <div className="flex items-center gap-1.5">
+                                                <BarChart3 className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                                                <span className="text-[9px] font-black text-white uppercase tracking-wider font-mono">Kalkulator odsetek</span>
+                                              </div>
+                                              <span className="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded font-black font-mono">11.25% R.R.S.</span>
+                                            </div>
+                                            
+                                            <div className="space-y-1 font-mono text-[9px] text-gray-400">
+                                              <div className="flex justify-between">
+                                                <span>Kwota roszczenia:</span>
+                                                <span className="text-white font-bold">{(item.totalDebtAmount || 0).toLocaleString()} PLN</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Zgłoszenie:</span>
+                                                <span className="text-white font-bold">{new Date(item.reportedAt).toLocaleDateString()}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span>Czas zwłoki:</span>
+                                                <span className="text-amber-400 font-bold">{diffDays} dni</span>
+                                              </div>
+                                              <div className="flex justify-between text-red-400 font-bold border-t border-[#16171d]/60 pt-1 mt-1">
+                                                <span>Odsetki ustawowe:</span>
+                                                <span>+{interestAmount.toFixed(2)} PLN</span>
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="border-t border-[#21232a] pt-1.5 flex justify-between items-center">
+                                              <span className="text-[8px] font-semibold text-gray-500 uppercase tracking-wider">Szacowane roszczenie:</span>
+                                              <span className="text-[11px] font-black font-mono text-emerald-400">{((item.totalDebtAmount || 0) + interestAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>
+                                            </div>
+                                            <div className="text-[7.5px] text-gray-500 text-center font-mono leading-tight bg-[#0f1013] p-1.5 rounded-lg border border-[#16171d]/60 mt-1">
+                                              Szacunek wg regulacji RP (odsetki ustawowe za opóźnienie) od dnia następującego po zgłoszeniu do bazy.
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
@@ -1264,9 +1462,76 @@ export default function App() {
                           
                           <div className="flex items-center gap-3">
                             {item.totalDebtAmount && (
-                              <span className="text-red-400 font-bold font-mono">
-                                Dług: {item.totalDebtAmount.toLocaleString()} PLN
-                              </span>
+                              <div className="flex items-center gap-1 relative" id={`interest-calc-coll-${item.id}`}>
+                                <span className="text-red-400 font-bold font-mono">
+                                  Dług: {item.totalDebtAmount.toLocaleString()} PLN
+                                </span>
+                                <button
+                                  id={`btn-interest-calc-coll-${item.id}`}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveInterestTooltip(prev => prev === `${item.id}-coll` ? null : `${item.id}-coll`);
+                                  }}
+                                  onMouseEnter={() => setActiveInterestTooltip(`${item.id}-coll`)}
+                                  onMouseLeave={() => setActiveInterestTooltip(null)}
+                                  className="p-1 rounded bg-[#16171d] hover:bg-[#1f2129] border border-[#272a31]/60 text-gray-400 hover:text-amber-400 transition-all cursor-pointer flex items-center justify-center"
+                                  title="Oblicz szacowane odsetki ustawowe za zwłokę od daty zgłoszenia"
+                                >
+                                  <BarChart3 className="w-3 h-3" />
+                                </button>
+
+                                {activeInterestTooltip === `${item.id}-coll` && (() => {
+                                  const reportedDate = new Date(item.reportedAt);
+                                  const currentDate = new Date();
+                                  const diffTime = Math.max(0, currentDate.getTime() - reportedDate.getTime());
+                                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                  const annualRate = 0.1125;
+                                  const interestAmount = item.totalDebtAmount * annualRate * (diffDays / 365);
+                                  return (
+                                    <div 
+                                      id={`tooltip-coll-${item.id}`}
+                                      className="absolute bottom-full mb-2 right-0 w-64 bg-[#0a0b0d] border border-amber-500/30 rounded-xl p-3 shadow-2xl z-40 space-y-2 pointer-events-auto leading-normal text-left" 
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <div className="flex items-center justify-between border-b border-[#21232a] pb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <BarChart3 className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                                          <span className="text-[9px] font-black text-white uppercase tracking-wider font-mono">Kalkulator odsetek</span>
+                                        </div>
+                                        <span className="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded font-black font-mono">11.25% R.R.S.</span>
+                                      </div>
+                                      
+                                      <div className="space-y-1 font-mono text-[9px] text-gray-400">
+                                        <div className="flex justify-between">
+                                          <span>Kwota roszczenia:</span>
+                                          <span className="text-white font-bold">{(item.totalDebtAmount || 0).toLocaleString()} PLN</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Zgłoszenie:</span>
+                                          <span className="text-white font-bold">{new Date(item.reportedAt).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Czas zwłoki:</span>
+                                          <span className="text-amber-400 font-bold">{diffDays} dni</span>
+                                        </div>
+                                        <div className="flex justify-between text-red-400 font-bold border-t border-[#16171d]/60 pt-1 mt-1">
+                                          <span>Odsetki ustawowe:</span>
+                                          <span>+{interestAmount.toFixed(2)} PLN</span>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="border-t border-[#21232a] pt-1.5 flex justify-between items-center">
+                                        <span className="text-[8px] font-semibold text-gray-500 uppercase tracking-wider">Szacowane roszczenie:</span>
+                                        <span className="text-[11px] font-black font-mono text-emerald-400">{((item.totalDebtAmount || 0) + interestAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</span>
+                                      </div>
+                                      <div className="text-[7.5px] text-gray-500 text-center font-mono leading-tight bg-[#0f1013] p-1.5 rounded-lg border border-[#16171d]/60 mt-1">
+                                        Szacunek wg regulacji RP (odsetki ustawowe za opóźnienie) od dnia następującego po zgłoszeniu do bazy.
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
                             )}
                             <span className="flex items-center gap-0.5 text-gray-400">
                               <MessageSquare className="w-3.5 h-3.5" />
@@ -1441,6 +1706,44 @@ export default function App() {
                         </p>
 
                         <div className="space-y-3 pt-1">
+                          {/* Szybki wybór dłużnika QoL */}
+                          <div>
+                            <label className="block text-[9px] font-bold text-amber-500 uppercase tracking-wider mb-1">
+                              ⚡ Uzyskaj dane dłużnika z systemu (Szybkie uzupełnienie)
+                            </label>
+                            <select
+                              id="calc-prefill-select"
+                              defaultValue=""
+                              onChange={(e) => {
+                                const selectedId = e.target.value;
+                                if (!selectedId) return;
+                                const entry = entries.find(x => x.id === selectedId);
+                                if (entry) {
+                                  if (entry.totalDebtAmount) {
+                                    setCalcDebt(entry.totalDebtAmount);
+                                  }
+                                  if (entry.reportedAt) {
+                                    // Set formatted date YYYY-MM-DD
+                                    setCalcDueDate(entry.reportedAt.split('T')[0]);
+                                  }
+                                  // Sync with letter values too!
+                                  setLetterDebtor(entry.name);
+                                  setLetterDebtorAddress(entry.location);
+                                  setLetterAmount(entry.totalDebtAmount ? String(entry.totalDebtAmount) : '');
+                                  setLetterTitle(`Roszczenie z tytułu: ${entry.name} - ${entry.identifier || 'Zgłoszenie bazy'}`);
+                                }
+                              }}
+                              className="w-full bg-[#1b1d24] border border-amber-500/30 px-2.5 py-2 rounded-lg text-[10px] text-gray-200 focus:outline-none focus:border-amber-500 font-sans cursor-pointer transition-colors"
+                            >
+                              <option value="">-- Wybierz sprawę dłużnika, aby automatycznie obliczyć parametry --</option>
+                              {entries.map(e => (
+                                <option key={e.id} value={e.id}>
+                                  {e.name} ({(e.totalDebtAmount || 0).toLocaleString()} PLN)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
                           {/* Kwota długu */}
                           <div>
                             <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Kwota zaległości (PLN)</label>
@@ -1539,6 +1842,42 @@ export default function App() {
                   </p>
 
                   <div className="space-y-2.5 font-sans">
+                    {/* Szybki wybór dłużnika do pism QoL */}
+                    <div>
+                      <label className="block text-[8.5px] font-bold text-amber-500 uppercase tracking-widest mb-1">
+                        ⚡ Szybkie uzupełnienie z bazy dłużników
+                      </label>
+                      <select
+                        id="letter-prefill-select"
+                        defaultValue=""
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          if (!selectedId) return;
+                          const entry = entries.find(x => x.id === selectedId);
+                          if (entry) {
+                            setLetterDebtor(entry.name);
+                            setLetterDebtorAddress(entry.location);
+                            setLetterAmount(entry.totalDebtAmount ? String(entry.totalDebtAmount) : '');
+                            setLetterTitle(`Zorany dług z tytułu: ${entry.name} (${entry.identifier || 'Zgłoszenie bazy'})`);
+                            if (entry.totalDebtAmount) {
+                              setCalcDebt(entry.totalDebtAmount);
+                            }
+                            if (entry.reportedAt) {
+                              setCalcDueDate(entry.reportedAt.split('T')[0]);
+                            }
+                          }
+                        }}
+                        className="w-full bg-[#1b1d24] border border-amber-500/30 px-2.5 py-1.5 rounded-lg text-[9px] text-gray-200 focus:outline-none focus:border-amber-500 font-sans cursor-pointer transition-colors"
+                      >
+                        <option value="">-- Wybierz sprawę dłużnika, aby wypełnić wezwanie --</option>
+                        {entries.map(e => (
+                          <option key={e.id} value={e.id}>
+                            {e.name} ({(e.totalDebtAmount || 0).toLocaleString()} PLN)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[8.5px] text-gray-500 uppercase font-black tracking-wider mb-1">Mój Alias / Nazwa wierzyciela</label>
@@ -1885,6 +2224,154 @@ Wskazaną kwotę należy wpłacić w nieprzekraczalnym terminie ${letterDueDateD
                 Zeskanuj kod QR aparatem telefonu lub prześlij podgląd znajomemu, aby błyskawicznie sprawdzić to zgłoszenie na innym urządzeniu.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report / Abuse Modal (QoL) */}
+      {reportingEntry && (
+        <div 
+          id="report-modal-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in"
+          onClick={() => setReportingEntry(null)}
+        >
+          <div 
+            id="report-modal-card"
+            className="bg-[#0b0c0e] border border-[#21232a] w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl relative animate-scale-up border-red-500/20"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#21232a]">
+              <div className="flex items-center gap-2">
+                <Flag className="w-5 h-5 text-red-500" />
+                <div>
+                  <h3 className="text-xs font-black text-white tracking-widest uppercase font-mono">Zgłoś błąd / nadużycie</h3>
+                  <p className="text-[9px] text-[#9ca3af] uppercase font-mono tracking-wider">KONTROLA JAKOŚCI WPISÓW</p>
+                </div>
+              </div>
+              <button 
+                id="close-report-modal-btn"
+                onClick={() => setReportingEntry(null)}
+                className="p-1 rounded-lg bg-[#131519] border border-[#21232a] text-gray-400 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {reportSubmittedFeedback ? (
+              <div className="text-center py-6 space-y-4 animate-scale-up">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                  <CheckCircle className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">Dziękujemy za zgłoszenie!</h4>
+                  <p className="text-[10px] text-gray-400 leading-relaxed font-sans max-w-[240px] mx-auto">
+                    Nasi moderatorzy zweryfikują ten wpis w oparciu o przesłane wytyczne. Pomagasz tworzyć bezpieczną i wiarygodną społeczność.
+                  </p>
+                </div>
+                <button
+                  id="btn-close-report-success"
+                  onClick={() => setReportingEntry(null)}
+                  className="px-5 py-2 rounded-xl bg-[#131519] border border-[#21232a] text-gray-300 hover:text-white text-[10px] uppercase font-bold transition-all cursor-pointer"
+                >
+                  Zamknij okno
+                </button>
+              </div>
+            ) : (
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setReportSubmittedFeedback(true);
+                  
+                  // Add a new system notification
+                  const reportNotify: AppNotification = {
+                    id: `sys-report-${Date.now()}`,
+                    title: 'Przyjęto zgłoszenie nadużycia',
+                    message: `Zgłoszenie dotyczące wpisu "${reportingEntry.name}" zostało przesłane do moderacji. Dziękujemy za pomoc!`,
+                    timestamp: new Date().toISOString(),
+                    isRead: false,
+                    type: 'SYSTEM'
+                  };
+                  setNotifications(prev => [reportNotify, ...prev]);
+                }}
+                className="space-y-4"
+              >
+                {/* Entry details header */}
+                <div className="bg-[#121319] border border-[#1d1f26] p-3 rounded-xl space-y-1">
+                  <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest font-mono">Dotyczy wpisu:</span>
+                  <h4 className="text-xs font-bold text-white uppercase truncate">{reportingEntry.name}</h4>
+                  <p className="text-[10px] text-gray-400 font-mono tracking-wide">{reportingEntry.identifier}</p>
+                </div>
+
+                {/* Abuse categories */}
+                <div className="space-y-2">
+                  <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono">Wybierz powód zgłoszenia</label>
+                  <div className="grid grid-cols-1 gap-1.5 text-xs text-gray-300 font-sans">
+                    {[
+                      { value: 'fake_news', label: 'Nieprawdziwe informacje (Fake news)' },
+                      { value: 'offensive_content', label: 'Wulgarne treści / Atak osobisty' },
+                      { value: 'incorrect_data', label: 'Błędne dane rejestrowe (NIP/REGON)' },
+                      { value: 'other', label: 'Inne (proszę opisać szczegóły)' }
+                    ].map((reason) => (
+                      <label 
+                        key={reason.value}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+                          reportReason === reason.value
+                            ? 'bg-red-500/5 border-red-500/30 text-white'
+                            : 'bg-[#121319] border-[#1d1f26] hover:bg-[#15171e]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="report-reason"
+                          value={reason.value}
+                          checked={reportReason === reason.value}
+                          onChange={() => setReportReason(reason.value)}
+                          className="opacity-0 w-0 h-0 absolute"
+                        />
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                          reportReason === reason.value ? 'border-red-500 bg-red-500' : 'border-gray-600'
+                        }`}>
+                          {reportReason === reason.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <span className="text-[11px] leading-tight font-medium">{reason.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Textarea detail specification */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono">Opis szczegółowy (Opcjonalnie)</label>
+                  <textarea
+                    id="report-details-textarea"
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    placeholder="Wpisz dodatkowe szczegóły lub sprostowanie, które pomogą administratorom podjąć właściwą decyzję..."
+                    className="w-full h-20 bg-[#0d0e11] border border-[#21232a] focus:border-red-500/40 p-2.5 rounded-xl text-xs text-gray-300 placeholder-gray-600 leading-normal focus:outline-none focus:ring-0 resize-none font-sans"
+                  />
+                </div>
+
+                {/* Submit row */}
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    id="btn-cancel-reporting"
+                    type="button"
+                    onClick={() => setReportingEntry(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#131519] border border-[#21232a] text-gray-400 hover:text-white text-xs font-bold uppercase transition-all cursor-pointer"
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    id="btn-submit-reporting"
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wide transition-all cursor-pointer hover:shadow-lg hover:shadow-red-900/10"
+                  >
+                    Wyślij
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
