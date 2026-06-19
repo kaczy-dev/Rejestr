@@ -47,6 +47,7 @@ import EntryDetails from './components/EntryDetails';
 import SecureChat from './components/SecureChat';
 import NotificationsPanel from './components/NotificationsPanel';
 import InteractiveIncidentMap from './components/InteractiveIncidentMap';
+import DashboardView from './components/DashboardView';
 
 // Icons
 import { 
@@ -88,13 +89,14 @@ import {
   Share2,
   X,
   Flag,
-  BarChart3
+  BarChart3,
+  Smartphone
 } from 'lucide-react';
 
 export default function App() {
   // Navigation / Tabs state
-  // "entries" | "chat" | "notifications" | "legal-guide" 
-  const [activeTab, setActiveTab] = useState<'entries' | 'chat' | 'notifications' | 'legal-guide'>('entries');
+  // "entries" | "dashboard" | "chat" | "notifications" | "legal-guide" 
+  const [activeTab, setActiveTab] = useState<'entries' | 'dashboard' | 'chat' | 'notifications' | 'legal-guide'>('entries');
   
   // App core states
   const [entries, setEntries] = useState<BlacklistEntry[]>(() => {
@@ -1553,6 +1555,19 @@ export default function App() {
           </div>
         )}
 
+        {/* Tab Dashboard content */}
+        {activeTab === 'dashboard' && (
+          <div id="tab-dashboard-content" className="animate-fade-in">
+            <DashboardView 
+              entries={entries}
+              onSelectEntry={(id) => {
+                setSelectedEntryId(id);
+                setActiveTab('entries');
+              }}
+            />
+          </div>
+        )}
+
         {/* Tab Chat Section content */}
         {activeTab === 'chat' && (
           <div id="tab-chat-content" className="animate-fade-in">
@@ -2072,6 +2087,18 @@ Wskazaną kwotę należy wpłacić w nieprzekraczalnym terminie ${letterDueDateD
             <span className="text-[10px] font-bold">Rejestr</span>
           </button>
 
+          {/* Tab Button Panel Statystyk (Dashboard) */}
+          <button
+            id="tab-btn-dashboard"
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-1 p-2 transition-all cursor-pointer ${
+              activeTab === 'dashboard' ? 'text-amber-500 scale-105' : 'text-gray-500 hover:text-gray-400'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Statystyki</span>
+          </button>
+
           {/* Tab Button Czaty Szyfrowane */}
           <button
             id="tab-btn-chat"
@@ -2206,6 +2233,19 @@ Wskazaną kwotę należy wpłacić w nieprzekraczalnym terminie ${letterDueDateD
                   {copyShareUrlFeedback ? <Check className="w-3.5 h-3.5 font-bold" /> : 'Kopiuj'}
                 </button>
               </div>
+            </div>
+
+            {/* Share via SMS Quick QoL Action */}
+            <div className="space-y-1.5">
+              <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest font-mono">Mobilna wysyłka SMS</label>
+              <a
+                id="share-sms-btn"
+                href={`sms:?body=${encodeURIComponent(`Baza ROS: Szczegóły dotyczące "${sharingEntry.name}". Zobacz wpis pod adresem: ${window.location.origin}${window.location.pathname}?entry=${sharingEntry.id}`)}`}
+                className="w-full py-2 px-3 rounded-lg bg-[#121318] hover:bg-[#1a1c22] border border-[#21232a] hover:border-amber-500/30 text-gray-200 hover:text-white text-[10px] font-bold tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 border-dashed"
+              >
+                <Smartphone className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>Wyślij SMS z wpisem</span>
+              </a>
             </div>
 
             {/* QR Code generator */}
